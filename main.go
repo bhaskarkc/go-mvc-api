@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/bhaskarkc/go-api/db"
 	"github.com/gorilla/mux"
 	"log"
@@ -21,27 +20,33 @@ func index(w http.ResponseWriter, r *http.Request) {
 	posts := []Post{}
 
 	err := db.Db.Select(&posts,
-		"Select ID, post_title, post_content from wp_posts WHERE post_type='post' and post_status='publish' order by ID DESC LIMIT 6",
+		`SELECT ID, post_title, post_content FROM wp_posts 
+		WHERE post_type='post' and post_status='publish' 
+		ORDER BY ID DESC LIMIT 6`,
 	)
 
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	// log.Println(posts)
 	json.NewEncoder(w).Encode(posts)
 }
 
-func singleForm(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	fmt.Printf("Requested ID: %s\n", vars["id"])
-	fmt.Fprintf(w, "Single Form Page.")
-}
-
-func formSubmissions(w http.ResponseWriter, r *http.Request) {
+func singlePost(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
 
 	vars := mux.Vars(r)
-	fmt.Fprintf(w, "Downloading Submissions for ID:%s", vars["id"])
+	post := Post{}
+	err := db.Db.Get(&post,
+		`SELECT ID, post_title, post_content FROM wp_posts
+		WHERE ID = ?`, vars["id"],
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	json.NewEncoder(w).Encode(post)
 }
 
 func main() {
@@ -51,9 +56,9 @@ func main() {
 
 	router := mux.NewRouter().StrictSlash(true)
 
-	router.HandleFunc("/", index)
-	router.HandleFunc("/forms/{id:[0-9]+}", singleForm).Methods("GET")
-	router.HandleFunc("/forms/{id:[0-9]+}/submissions", formSubmissions).Methods("GET")
+	router.HandleFunc("/posts", index)
+	router.HandleFunc("/posts/{id:[0-9]+}", singlePost).Methods("GET")
 
+	log.Println("Serving at localhost:7000")
 	log.Fatal(http.ListenAndServe(":7000", router))
 }
