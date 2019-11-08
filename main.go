@@ -10,14 +10,25 @@ import (
 )
 
 type Post struct {
-	ID      string `json:ID`
-	Title   string `json:post_title`
-	Content string `json:post_content`
+	Id      uint64 `db:"ID" json:"ID"`
+	Title   string `db:"post_title" json:"Title"`
+	Content string `db:"post_content" json:"Content"`
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	var posts []Post
+
+	posts := []Post{}
+
+	err := db.Db.Select(&posts,
+		"Select ID, post_title, post_content from wp_posts WHERE post_type='post' and post_status='publish' order by ID DESC LIMIT 6",
+	)
+
+	if err != nil {
+		panic(err)
+	}
+
+	// log.Println(posts)
 	json.NewEncoder(w).Encode(posts)
 }
 
